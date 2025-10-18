@@ -57,3 +57,6 @@ export default {
   port,
   fetch: app.fetch,
 }
+export const config = {
+  runtime: 'bun',
+};
