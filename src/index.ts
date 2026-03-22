@@ -28,21 +28,8 @@ const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...configur
 
 const app = new Hono<{ Bindings: Env }>()
 
-// Initialize database based on environment
-app.use('*', async (c, next) => {
-  // For Cloudflare Workers, initialize with D1 binding
-  if (c.env?.DB) {
-    const dbClient = initializeDatabase(c.env.DB)
-    await dbClient.init()
-  } else {
-    // For local development, use SQLite
-    const dbClient = initializeDatabase()
-    await dbClient.init()
-  }
-  await next()
-})
-
-// CORS middleware
+// CORS middleware should run before any database work so OPTIONS preflight
+// can complete even if downstream services are unavailable.
 app.use('/*', cors({
   origin: (origin) => {
     if (!origin) {
@@ -55,6 +42,25 @@ app.use('/*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }))
+
+// Initialize database based on environment
+app.use('*', async (c, next) => {
+  if (c.req.method === 'OPTIONS') {
+    await next()
+    return
+  }
+
+  // For Cloudflare Workers, initialize with D1 binding
+  if (c.env?.DB) {
+    const dbClient = initializeDatabase(c.env.DB)
+    await dbClient.init()
+  } else {
+    // For local development, use SQLite
+    const dbClient = initializeDatabase()
+    await dbClient.init()
+  }
+  await next()
+})
 
 // Health check endpoint
 app.get('/api/health', (c) => {

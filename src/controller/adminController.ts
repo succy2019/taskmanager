@@ -4,6 +4,18 @@ import { setCookie } from 'hono/cookie'
 import dbClient from '../repository/database'
 import pusherService from '../services/pusherService'
 
+function getAuthCookieOptions(c: Context) {
+  const isSecureRequest = new URL(c.req.url).protocol === 'https:'
+
+  return {
+    httpOnly: true,
+    secure: isSecureRequest,
+    sameSite: (isSecureRequest ? 'None' : 'Lax') as 'None' | 'Lax',
+    maxAge: 60 * 60 * 24,
+    path: '/'
+  }
+}
+
 
 export const loginAdmin = async (c: Context, next: Next) => {
 
@@ -13,8 +25,9 @@ export const loginAdmin = async (c: Context, next: Next) => {
         return c.json({ message: 'Invalid email or password' }, 401)
     }
     try {
-        // Check if JWT_SECRET is available
-        if (!process.env.JWT_SECRET) {
+      const jwtSecret = c.env?.JWT_SECRET
+
+      if (!jwtSecret) {
             console.error('JWT_SECRET environment variable is not set');
             return c.json({ message: 'Server configuration error' }, 500);
         }
@@ -23,17 +36,8 @@ export const loginAdmin = async (c: Context, next: Next) => {
             id: admin.id,
             email: admin.email
         }
-        const token = await sign(payload, process.env.JWT_SECRET as string, 'HS256')
-
-
-        const isProduction = process.env.NODE_ENV === 'production'
-        setCookie(c, 'authToken', token, {
-            httpOnly: true,
-            secure: isProduction,
-          sameSite: isProduction ? 'None' : 'Lax',
-            maxAge: 60 * 60 * 24,
-            path: '/'
-        })
+          const token = await sign(payload, jwtSecret, 'HS256')
+          setCookie(c, 'authToken', token, getAuthCookieOptions(c))
 
         return c.json({
             message: 'Login successful',
@@ -51,13 +55,9 @@ export const loginAdmin = async (c: Context, next: Next) => {
 
 export const logoutAdmin = async (c: Context) => {
     // Clear the authentication cookie
-  const isProduction = process.env.NODE_ENV === 'production'
     setCookie(c, 'authToken', '', {
-        httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'None' : 'Lax',
+    ...getAuthCookieOptions(c),
         maxAge: 0, // Expire immediately
-        path: '/'
     })
 
     return c.json({ message: 'Logout successful' }, 200)

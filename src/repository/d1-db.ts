@@ -1,49 +1,38 @@
 import { User, TaskManager, Admin } from '../models/index'
 import { DatabaseInterface } from './database-interface'
 
+type D1PreparedStatement = {
+    bind(...values: unknown[]): D1PreparedStatement
+    run(): Promise<{ success: boolean; meta: { last_row_id: number; changes: number } }>
+    first(): Promise<unknown>
+    all(): Promise<{ results: unknown[] }>
+}
+
+type D1Database = {
+    prepare(query: string): D1PreparedStatement
+}
+
 export class D1DbClient implements DatabaseInterface {
     private db: D1Database
+    private initialized = false
     
     constructor(database: D1Database) {
         this.db = database
     }
 
     async init() {
+        if (this.initialized) {
+            return
+        }
+
         // Create tables if they don't exist
-        await this.db.exec(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                userId TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                name TEXT NOT NULL,
-                password TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `)
+        await this.db.prepare('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, password TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)').run()
 
-        await this.db.exec(`
-            CREATE TABLE IF NOT EXISTS admins (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        `)
+        await this.db.prepare('CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)').run()
 
-        await this.db.exec(`
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                userId TEXT NOT NULL,
-                name TEXT NOT NULL,
-                description TEXT NOT NULL,
-                status TEXT NOT NULL CHECK (status IN ('pending', 'in-progress', 'completed')),
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (userId) REFERENCES users (userId) ON DELETE CASCADE
-            )
-        `)
+        await this.db.prepare("CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'in-progress', 'completed')), created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (userId) REFERENCES users (userId) ON DELETE CASCADE)").run()
+
+        this.initialized = true
     }
 
     // User methods

@@ -15,7 +15,7 @@ export const authMiddleware = async (c: Context, next: Next) => {
   }
 
   try {
-    const jwtSecret = process.env.JWT_SECRET
+    const jwtSecret = c.env?.JWT_SECRET
 
     if (!jwtSecret) {
       return c.json({message: 'Server configuration error'}, 500)
