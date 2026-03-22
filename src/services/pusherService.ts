@@ -1,7 +1,7 @@
-const Pusher = require('pusher');
+import Pusher from 'pusher';
 
 class PusherService {
-  private pusher: any;
+  private pusher: Pusher;
 
   constructor() {
     this.pusher = new Pusher({

@@ -1195,10 +1195,16 @@
             return Array.from({length: 7}, () => Math.floor(Math.random() * 50) + 10);
         }
 
+        const API_BASE_URL = 'https://taskmanager-backend.successoghenede2.workers.dev';
+
+        function buildApiUrl(endpoint) {
+            return `${API_BASE_URL}/api${endpoint}`;
+        }
+
         // API functions
         async function apiCall(endpoint, options = {}) {
             try {
-                const response = await fetch(`/api${endpoint}`, {
+                const response = await fetch(buildApiUrl(endpoint), {
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     ...options
@@ -1752,12 +1758,12 @@
 
         // API Functions for User and Task Updates
         async function updateUserProfile(userId, name) {
-            const response = await fetch(`/api/admin/users/${userId}`, {
+            const response = await fetch(buildApiUrl(`/admin/users/${userId}`), {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ name })
             });
             
@@ -1770,12 +1776,12 @@
         }
 
         async function updateTaskStatusAdmin(taskId, status) {
-            const response = await fetch(`/api/admin/tasks/${taskId}/status`, {
+            const response = await fetch(buildApiUrl(`/admin/tasks/${taskId}/status`), {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ status })
             });
             

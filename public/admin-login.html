@@ -558,10 +558,16 @@
             }
         }
 
+        const API_BASE_URL = 'https://taskmanager-backend.successoghenede2.workers.dev';
+
+        function buildApiUrl(endpoint) {
+            return `${API_BASE_URL}/api${endpoint}`;
+        }
+
         // API Function
         async function adminLogin(email, password) {
             try {
-                const response = await fetch('/api/admin/login', {
+                const response = await fetch(buildApiUrl('/admin/login'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

@@ -2,6 +2,12 @@
   "name": "taskmanager",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "deploy": "wrangler pages deploy public --project-name taskmanager",
+    "deploy:workers": "wrangler deploy", 
+    "deploy:production": "wrangler pages deploy public --project-name taskmanager --env production",
+    "wrangler:dev": "wrangler dev",
+    "pages:dev": "wrangler pages dev public --local",
     "seed-admin": "bun run seed-admin.ts"
   },
   "dependencies": {
@@ -10,6 +16,8 @@
     "pusher": "^5.2.0"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@cloudflare/workers-types": "^4.20240329.0",
+    "wrangler": "^3.15.0"
   }
 }

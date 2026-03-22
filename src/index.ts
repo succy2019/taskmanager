@@ -1,30 +1,70 @@
-import 'dotenv/config'
 import { Hono } from 'hono'
-import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
 import { login, register, logout, getProfile } from './controller/userController'
 import { loginAdmin, logoutAdmin, getAllUsers, getAllTasks, updateProfile, updateUserById, updateTaskStatus as updateTaskStatusAdmin } from './controller/adminController'
 import { getUserTasks, createTask, updateTaskStatus, updateTask, deleteTask, getTaskById } from './controller/taskController'
 import { authMiddleware } from './middleware/authmiddleware'
+import { initializeDatabase } from './repository/database'
 
-const app = new Hono()
+type D1Database = unknown
+
+// Cloudflare Workers environment interface
+interface Env {
+  DB: D1Database
+}
+
+const defaultAllowedOrigins = [
+  'http://localhost:9000',
+  'http://127.0.0.1:9000',
+  'https://taskmanagerfront.successoghenede2.workers.dev'
+]
+
+const configuredAllowedOrigins = (process.env.FRONTEND_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...configuredAllowedOrigins]))
+
+const app = new Hono<{ Bindings: Env }>()
+
+// Initialize database based on environment
+app.use('*', async (c, next) => {
+  // For Cloudflare Workers, initialize with D1 binding
+  if (c.env?.DB) {
+    const dbClient = initializeDatabase(c.env.DB)
+    await dbClient.init()
+  } else {
+    // For local development, use SQLite
+    const dbClient = initializeDatabase()
+    await dbClient.init()
+  }
+  await next()
+})
 
 // CORS middleware
 app.use('/*', cors({
-  origin: '*',
+  origin: (origin) => {
+    if (!origin) {
+      return allowedOrigins[0]
+    }
+
+    return allowedOrigins.includes(origin) ? origin : ''
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }))
 
-// Serve static files
-app.use('/static/*', serveStatic({ root: './' }))
-app.get('/', serveStatic({ path: './public/index.html' }))
-
-// Serve dashboard pages
-app.get('/admin-login.html', serveStatic({ path: './public/admin-login.html' }))
-app.get('/admin-dashboard.html', serveStatic({ path: './public/admin-dashboard.html' }))
-app.get('/user-dashboard.html', serveStatic({ path: './public/user-dashboard.html' }))
+// Health check endpoint
+app.get('/api/health', (c) => {
+  return c.json({ 
+    status: 'ok', 
+    message: 'TaskManager API is running',
+    database: process.env.DATABASE_TYPE || 'd1',
+    timestamp: new Date().toISOString()
+  })
+})
 
 // Auth routes
 app.post('/api/auth/login', login)

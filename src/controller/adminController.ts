@@ -8,13 +8,13 @@ import pusherService from '../services/pusherService'
 export const loginAdmin = async (c: Context, next: Next) => {
 
     const { email, password } = await c.req.json()
-    const admin = dbClient.getAdminByEmailAndPassword(email, password)
+    const admin = await dbClient.getAdminByEmailAndPassword(email, password)
     if (!admin) {
         return c.json({ message: 'Invalid email or password' }, 401)
     }
     try {
         // Check if JWT_SECRET is available
-        if (!Bun.env.JWT_SECRET) {
+        if (!process.env.JWT_SECRET) {
             console.error('JWT_SECRET environment variable is not set');
             return c.json({ message: 'Server configuration error' }, 500);
         }
@@ -23,14 +23,14 @@ export const loginAdmin = async (c: Context, next: Next) => {
             id: admin.id,
             email: admin.email
         }
-        const token = await sign(payload, Bun.env.JWT_SECRET as string, 'HS256')
+        const token = await sign(payload, process.env.JWT_SECRET as string, 'HS256')
 
 
-        const isProduction = Bun.env.NODE_ENV === 'production'
+        const isProduction = process.env.NODE_ENV === 'production'
         setCookie(c, 'authToken', token, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? 'Strict' : 'Lax',
+          sameSite: isProduction ? 'None' : 'Lax',
             maxAge: 60 * 60 * 24,
             path: '/'
         })
@@ -51,10 +51,11 @@ export const loginAdmin = async (c: Context, next: Next) => {
 
 export const logoutAdmin = async (c: Context) => {
     // Clear the authentication cookie
+  const isProduction = process.env.NODE_ENV === 'production'
     setCookie(c, 'authToken', '', {
         httpOnly: true,
-        secure: Bun.env.NODE_ENV === 'production',
-        sameSite: Bun.env.NODE_ENV === 'production' ? 'Strict' : 'Lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax',
         maxAge: 0, // Expire immediately
         path: '/'
     })
@@ -64,13 +65,13 @@ export const logoutAdmin = async (c: Context) => {
 
 //admin to get all users
 export const getAllUsers = async (c: Context) => {
-    const users = dbClient.getAllUsers()
+    const users = await dbClient.getAllUsers()
     return c.json({ users }, 200)
 }
 
 //admin to get all tasks
 export const getAllTasks = async (c: Context) => {
-    const tasks = dbClient.getAllTasks()
+    const tasks = await dbClient.getAllTasks()
     return c.json({ tasks }, 200)
 }
 
@@ -80,7 +81,7 @@ export const updateProfile = async (c: Context) => {
   if (!user) {
     return c.json({ message: "User not found" }, 404);
   }
-  const updatedUser = dbClient.updateUser(user.id, name, user.email);
+  const updatedUser = await dbClient.updateUser(user.id, name, user.email);
   if (!updatedUser) {
     return c.json({ message: "Failed to update user" }, 500);
   }
@@ -98,12 +99,12 @@ export const updateUserById = async (c: Context) => {
     }
     
     // Get current user data first
-    const currentUser = dbClient.getUserById(userId);
+    const currentUser = await dbClient.getUserById(userId);
     if (!currentUser) {
       return c.json({ error: "User not found" }, 404);
     }
     
-    const updatedUser = dbClient.updateUser(userId, name, currentUser.email);
+    const updatedUser = await dbClient.updateUser(userId, name, currentUser.email);
     if (!updatedUser) {
       return c.json({ error: "Failed to update user" }, 500);
     }
@@ -134,12 +135,12 @@ export const updateTaskStatus = async (c: Context) => {
       return c.json({ error: "Invalid status. Must be 'pending', 'in-progress', or 'completed'" }, 400);
     }
     
-    const task = dbClient.getTaskById(parseInt(taskId));
+    const task = await dbClient.getTaskById(parseInt(taskId));
     if (!task) {
       return c.json({ error: "Task not found" }, 404);
     }
     
-    const updatedTask = dbClient.updateTaskStatus(parseInt(taskId), status);
+    const updatedTask = await dbClient.updateTaskStatus(parseInt(taskId), status);
     if (!updatedTask) {
       return c.json({ error: "Failed to update task status" }, 500);
     }

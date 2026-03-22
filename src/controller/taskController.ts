@@ -7,7 +7,7 @@ export const getUserTasks = async (c: Context) => {
     const user = c.get("user") as any;
     const userId = user.id; // JWT payload has 'id' field
     
-    const tasks = dbClient.getTasksByUserId(userId);
+    const tasks = await dbClient.getTasksByUserId(userId);
     return c.json({ tasks }, 200);
   } catch (error) {
     console.error('Error fetching tasks:', error);
@@ -25,7 +25,7 @@ export const createTask = async (c: Context) => {
       return c.json({ message: "Name and description are required" }, 400);
     }
     
-    const task = dbClient.createTask({
+    const task = await dbClient.createTask({
       userId: userId,
       name: name.trim(),
       description: description.trim(),
@@ -61,21 +61,21 @@ export const updateTaskStatus = async (c: Context) => {
     }
     
     // First, verify the task belongs to the user
-    const tasks = dbClient.getTasksByUserId(userId);
+    const tasks = await dbClient.getTasksByUserId(userId);
     const userTask = tasks.find(task => task.id === taskId);
     
     if (!userTask) {
       return c.json({ message: "Task not found or you don't have permission to update it" }, 404);
     }
     
-    const updated = dbClient.updateTaskStatus(taskId, status);
+    const updated = await dbClient.updateTaskStatus(taskId, status);
     
     if (!updated) {
       return c.json({ message: "Failed to update task status" }, 500);
     }
     
     // Get updated task for notification
-    const updatedTask = dbClient.getTaskById(taskId);
+    const updatedTask = await dbClient.getTaskById(taskId);
     if (updatedTask) {
       await pusherService.notifyTaskUpdated(userId, updatedTask, 'status');
     }
@@ -103,7 +103,7 @@ export const updateTask = async (c: Context) => {
     }
     
     // Verify the task belongs to the user
-    const tasks = dbClient.getTasksByUserId(userId);
+    const tasks = await dbClient.getTasksByUserId(userId);
     const userTask = tasks.find(task => task.id === taskId);
     
     if (!userTask) {
@@ -117,14 +117,14 @@ export const updateTask = async (c: Context) => {
       status: (status && ['pending', 'in-progress', 'completed'].includes(status)) ? status : userTask.status
     };
     
-    const success = dbClient.updateTask(taskId, updatedTask.name, updatedTask.description, updatedTask.status);
+    const success = await dbClient.updateTask(taskId, updatedTask.name, updatedTask.description, updatedTask.status);
     
     if (!success) {
       return c.json({ message: "Failed to update task" }, 500);
     }
     
     // Get updated task for notification
-    const finalTask = dbClient.getTaskById(taskId);
+    const finalTask = await dbClient.getTaskById(taskId);
     if (finalTask) {
       await pusherService.notifyTaskUpdated(userId, finalTask, 'details');
     }
@@ -150,14 +150,14 @@ export const deleteTask = async (c: Context) => {
     }
     
     // Verify the task belongs to the user
-    const tasks = dbClient.getTasksByUserId(userId);
+    const tasks = await dbClient.getTasksByUserId(userId);
     const userTask = tasks.find(task => task.id === taskId);
     
     if (!userTask) {
       return c.json({ message: "Task not found or you don't have permission to delete it" }, 404);
     }
     
-    const deleted = dbClient.deleteTaskById(taskId);
+    const deleted = await dbClient.deleteTaskById(taskId);
     
     if (!deleted) {
       return c.json({ message: "Failed to delete task" }, 500);
@@ -187,7 +187,7 @@ export const getTaskById = async (c: Context) => {
     }
     
     // Use the new database method
-    const task = dbClient.getTaskById(taskId);
+    const task = await dbClient.getTaskById(taskId);
     
     if (!task) {
       return c.json({ message: "Task not found" }, 404);

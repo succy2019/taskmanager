@@ -1,13 +1,13 @@
 import { DatabaseInterface } from './database-interface'
 import { D1DbClient } from './d1-db'
 
-// Database factory - chooses implementation based on environment  
+// Database factory for Cloudflare Workers - only supports D1
 function createDatabase(d1Database?: D1Database): DatabaseInterface {
   if (d1Database) {
     console.log('🔗 Using Cloudflare D1 database')
     return new D1DbClient(d1Database)
   } else {
-    throw new Error('Only D1 database is supported in this build')
+    throw new Error('D1 database binding required for Cloudflare Workers')
   }
 }
 
@@ -21,7 +21,9 @@ export class DbClient {
 
     async init() {
         // Initialize D1 tables
-        await (this.client as D1DbClient).init()
+        if (this.client instanceof D1DbClient) {
+            await (this.client as D1DbClient).init()
+        }
     }
 
     // User methods
@@ -114,7 +116,7 @@ export class DbClient {
 }
 
 // Create singleton instance
-let dbClient: DbClient | null = null
+let dbClient: DbClient
 
 export function initializeDatabase(d1Database?: D1Database) {
     if (!dbClient) {
@@ -125,21 +127,24 @@ export function initializeDatabase(d1Database?: D1Database) {
 
 export function getDbClient() {
     if (!dbClient) {
-        throw new Error('Database not initialized. Call initializeDatabase() first.')
+        throw new Error('Database not initialized. Call initializeDatabase first.')
     }
     return dbClient
 }
 
-// For backward compatibility - lazy initialization
-const proxy = new Proxy({} as DbClient, {
-    get(target, prop) {
-        if (!dbClient) {
-            throw new Error('Database not initialized. Call initializeDatabase() first.')
-        }
-        const value = (dbClient as any)[prop];
-        return typeof value === 'function' ? value.bind(dbClient) : value;
-    }
-});
+// For backward compatibility - create default instance when needed
+let defaultDbClient: DbClient | null = null
 
-export { proxy as dbClient }
-export default proxy
+export { 
+    defaultDbClient as dbClient,
+    defaultDbClient as default
+}
+
+// Initialize default client when imported (fallback)
+if (!defaultDbClient) {
+    try {
+        defaultDbClient = new DbClient()
+    } catch (e) {
+        // Will be initialized later with D1 binding
+    }
+}

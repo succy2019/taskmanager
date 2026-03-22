@@ -919,6 +919,12 @@
             document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
         }
 
+        const API_BASE_URL = 'https://taskmanager-backend.successoghenede2.workers.dev';
+
+        function buildApiUrl(endpoint) {
+            return `${API_BASE_URL}/api${endpoint}`;
+        }
+
         // API Functions
         async function apiCall(endpoint, options = {}) {
             const defaultOptions = {
@@ -928,7 +934,7 @@
                 credentials: 'include'
             };
 
-            const response = await fetch(`/api${endpoint}`, {
+            const response = await fetch(buildApiUrl(endpoint), {
                 ...defaultOptions,
                 ...options,
                 headers: {

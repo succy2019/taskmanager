@@ -15,7 +15,13 @@ export const authMiddleware = async (c: Context, next: Next) => {
   }
 
   try {
-    const decoded = await verify(token, Bun.env.JWT_SECRET as string)
+    const jwtSecret = process.env.JWT_SECRET
+
+    if (!jwtSecret) {
+      return c.json({message: 'Server configuration error'}, 500)
+    }
+
+    const decoded = await verify(token, jwtSecret)
     c.set('user', decoded)
     
     return next()
